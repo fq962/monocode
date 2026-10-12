@@ -16,7 +16,7 @@ import type { MonoSpawnedSession, Session } from "../../sessions/model/session";
 import type { MonoLook, MonoState } from "../model/mono";
 import { HABITS_MAX } from "../model/monoHabits";
 import { HabitPage } from "./HabitPage";
-import { NewHabitPage } from "./NewHabitPage";
+import { HabitFormPage } from "./HabitFormPage";
 import { habitActions, HabitsList, useHabits } from "./MonoHabits";
 import { ArtifactReader } from "../../artifacts/ui/ArtifactPanel";
 import { ArtifactIcon } from "../../artifacts/ui/ArtifactCard";
@@ -59,7 +59,10 @@ export type MonoOverviewChanges = {
   projects: readonly string[];
 };
 
-type Route = { kind: "new-habit" } | { kind: "habit"; id: string };
+type Route =
+  | { kind: "new-habit" }
+  | { kind: "habit"; id: string }
+  | { kind: "edit-habit"; id: string };
 
 type Props = {
   open: boolean;
@@ -145,12 +148,26 @@ export function MonoOverview({
       return [
         {
           key: "new-habit",
-          node: <NewHabitPage monoId={monoId} onBack={back} onCreated={back} />,
+          node: <HabitFormPage monoId={monoId} onBack={back} onSaved={back} />,
         },
       ];
     // A habit removed while open closes its page.
     const habit = habits?.find((entry) => entry.id === route.id);
     if (!habit) return [];
+    if (route.kind === "edit-habit")
+      return [
+        {
+          key: `edit-habit:${route.id}:${depth}`,
+          node: (
+            <HabitFormPage
+              monoId={monoId}
+              habit={habit}
+              onBack={back}
+              onSaved={back}
+            />
+          ),
+        },
+      ];
     return [
       {
         key: `habit:${route.id}:${depth}`,
@@ -161,6 +178,7 @@ export function MonoOverview({
             cwd={cwd}
             onBack={back}
             onRunNow={() => actions.runNow(habit.id)}
+            onEdit={() => push({ kind: "edit-habit", id: habit.id })}
             onToggle={() => actions.toggle(habit.id)}
             onRemove={() => {
               actions.remove(habit.id);
@@ -227,11 +245,7 @@ export function MonoOverview({
         <MonoSidebarHeader
           title="Overview"
           heading={
-            <OverviewTabs
-              tab={tab}
-              counts={counts}
-              onChange={onTabChange}
-            />
+            <OverviewTabs tab={tab} counts={counts} onChange={onTabChange} />
           }
           onClose={onClose}
           actions={
